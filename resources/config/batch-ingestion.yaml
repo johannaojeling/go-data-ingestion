@@ -1,0 +1,38 @@
+example01:
+  source_uri: 'gs://{{ .Bucket }}/input/{{ .Date.Format "2006/01/02" }}/example.json'
+  source_format: "NEWLINE_DELIMITED_JSON"
+  auto_detect: true
+  dataset_id: "raw"
+  table_id: 'example01${{ .Date.Format "20060102" }}'
+  create_disposition: "CREATE_NEVER"
+  write_disposition: "WRITE_TRUNCATE"
+example02:
+  source_uri: 'gs://{{ .Bucket }}/input/{{ .Date.Format "2006/01/02" }}/example.csv'
+  source_format: "CSV"
+  csv_options:
+    skip_leading_rows: 1
+  auto_detect: true
+  dataset_id: "raw"
+  table_id: 'example02${{ .Date.Format "20060102" }}'
+  create_disposition: "CREATE_NEVER"
+  write_disposition: "WRITE_TRUNCATE"
+example03:
+  source_uri: 'gs://{{ .Bucket }}/input/{{ .Date.Format "2006/01/02" }}/example.avro'
+  source_format: "AVRO"
+  avro_options:
+    use_avro_logical_types: true
+  auto_detect: true
+  dataset_id: "raw"
+  table_id: 'example03${{ .Date.Format "20060102" }}'
+  create_disposition: "CREATE_NEVER"
+  write_disposition: "WRITE_TRUNCATE"
+example04:
+  source_uri: 'gs://{{ .Bucket }}/input/{{ .Date.Format "2006/01/02" }}/example.parquet'
+  source_format: "PARQUET"
+  parquet_options:
+    enum_as_string: true
+  auto_detect: true
+  dataset_id: "raw"
+  table_id: 'example04${{ .Date.Format "20060102" }}'
+  create_disposition: "CREATE_NEVER"
+  write_disposition: "WRITE_TRUNCATE"

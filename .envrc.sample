@@ -1,0 +1,14 @@
+set -a
+
+# Local
+export PROJECT=""
+export BUCKET=""
+export FUNCTION_TARGET="IngestBatch"
+export PORT="8080"
+
+# GCP
+export PROJECT=""
+export REGION=""
+export CLOUD_FUNCTION_SA=""
+export FUNCTION_NAME=""
+export BUCKET=""

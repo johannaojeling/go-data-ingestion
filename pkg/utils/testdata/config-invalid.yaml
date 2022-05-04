@@ -1,0 +1,8 @@
+test01:
+  source_uri: 'gs://{{ .Bucket }}/input/{{ .Date.Format "2006/01/02" '
+  source_format: "NEWLINE_DELIMITED_JSON"
+  auto_detect: true
+  dataset_id: "raw"
+  table_id: 'test01${{ .Date.Format "20060102" }}'
+  create_disposition: "CREATE_NEVER"
+  write_disposition: "WRITE_TRUNCATE"

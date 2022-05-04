@@ -1,0 +1,9 @@
+# Go
+coverage.out
+bin/
+
+# IDE
+.idea
+
+# Direnv
+.envrc
