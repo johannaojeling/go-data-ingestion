@@ -17,31 +17,21 @@ import (
 )
 
 const (
-	DateLayout = "2006-01-02"
-	ConfigPath = "resources/config/batch-ingestion.yaml"
+	dateLayout = "2006-01-02"
+	configPath = "resources/config/batch-ingestion.yaml"
 )
 
 var (
 	//go:embed resources
 	resources embed.FS
 
-	config                []byte
-	projectId             string
-	bucket                string
-	newBigQueryClientFunc func() utils.BigQueryClient
+	projectId = os.Getenv("PROJECT")
+	bucket    = os.Getenv("BUCKET")
+
+	newBigQueryClientFunc = utils.NewBigQueryClient
 )
 
 func init() {
-	var err error
-	config, err = resources.ReadFile(ConfigPath)
-	if err != nil {
-		log.Fatalf("failed to read config file")
-	}
-
-	projectId = os.Getenv("PROJECT")
-	bucket = os.Getenv("BUCKET")
-	newBigQueryClientFunc = utils.NewBigQueryClient
-
 	functions.HTTP("IngestBatch", IngestBatch)
 }
 
@@ -63,7 +53,7 @@ func IngestBatch(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	date, err := time.Parse(DateLayout, data.Date)
+	date, err := time.Parse(dateLayout, data.Date)
 	if err != nil {
 		log.Printf("error parsing date string to time: %v\n", err)
 		writer.WriteHeader(http.StatusBadRequest)
@@ -77,6 +67,11 @@ func IngestBatch(writer http.ResponseWriter, request *http.Request) {
 	}{
 		Bucket: bucket,
 		Date:   date,
+	}
+
+	config, err := resources.ReadFile(configPath)
+	if err != nil {
+		log.Fatalf("failed to read config file")
 	}
 
 	var configMap map[string]models.DataSource
