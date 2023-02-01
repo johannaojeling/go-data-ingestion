@@ -13,7 +13,7 @@ file is templated with the fields `.Bucket` and `.Date` representing the bucket 
 ingestion.
 
 Below are the options that can be configured in the yaml configuration file.
-See [pkg/models/data_source.go](pkg/models/data_source.go) for details about specific file type options.
+See [pkg/data_source.go](pkg/data_source.go) for details about specific file type options.
 
 | Key                | Description                                                                 |
 |--------------------|-----------------------------------------------------------------------------|
@@ -48,7 +48,7 @@ go mod download
 Run unit tests
 
 ```bash
-go test ./... -race
+go test ./...
 ```
 
 ### Running the application
@@ -65,7 +65,7 @@ Set environment variables
 Run application
 
 ```bash
-go run cmd/ingest_batch/main.go
+go run cmd/main.go
 ```
 
 Set URL

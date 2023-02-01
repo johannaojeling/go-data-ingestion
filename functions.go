@@ -10,10 +10,9 @@ import (
 	"os"
 	"time"
 
+	"cloud.google.com/go/bigquery"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
-
-	"github.com/johannaojeling/go-data-ingestion/pkg/models"
-	"github.com/johannaojeling/go-data-ingestion/pkg/utils"
+	"github.com/johannaojeling/go-data-ingestion/pkg"
 )
 
 const (
@@ -25,128 +24,118 @@ var (
 	//go:embed resources
 	resources embed.FS
 
-	projectId = os.Getenv("PROJECT")
-	bucket    = os.Getenv("BUCKET")
+	config []byte
+	client *bigquery.Client
 
-	newBigQueryClientFunc = utils.NewBigQueryClient
+	projectID = os.Getenv("PROJECT")
+	bucket    = os.Getenv("BUCKET")
 )
 
 func init() {
+	var err error
+
+	config, err = resources.ReadFile(configPath)
+	if err != nil {
+		log.Fatalf("Error reading config file: %v", err)
+	}
+
+	client, err = bigquery.NewClient(context.Background(), projectID)
+	if err != nil {
+		log.Fatalf("Error initializing BigQuery client: %v", err)
+	}
+
 	functions.HTTP("IngestBatch", IngestBatch)
 }
 
-func IngestBatch(writer http.ResponseWriter, request *http.Request) {
-	if request.Method != http.MethodPost {
-		writer.WriteHeader(http.StatusMethodNotAllowed)
-		fmt.Fprint(writer, "supports only POST method")
+type batchRequest struct {
+	Date string
+}
+
+type templateFields struct {
+	Bucket string
+	Date   time.Time
+}
+
+func IngestBatch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		log.Printf("Invalid HTTP method: %v\n", r.Method)
+		http.Error(w, "Only POST method is supported", http.StatusMethodNotAllowed)
 		return
 	}
 
-	var data struct {
-		Date string
+	var batchReq batchRequest
+	if err := json.NewDecoder(r.Body).Decode(&batchReq); err != nil {
+		log.Printf("Error unmarshaling request body: %v\n", err)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
 	}
-	err := json.NewDecoder(request.Body).Decode(&data)
+
+	date, err := time.Parse(dateLayout, batchReq.Date)
 	if err != nil {
-		log.Printf("error unmarshaling request requestBody: %v\n", err)
-		writer.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(writer, "invalid request body")
+		log.Printf("Error parsing date string to time: %v\n", err)
+		http.Error(w, "Invalid date format", http.StatusBadRequest)
 		return
 	}
 
-	date, err := time.Parse(dateLayout, data.Date)
-	if err != nil {
-		log.Printf("error parsing date string to time: %v\n", err)
-		writer.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(writer, "invalid date")
-		return
-	}
-
-	templateFields := struct {
-		Bucket string
-		Date   time.Time
-	}{
+	fields := templateFields{
 		Bucket: bucket,
 		Date:   date,
 	}
 
-	config, err := resources.ReadFile(configPath)
-	if err != nil {
-		log.Fatalf("failed to read config file")
-	}
-
-	var configMap map[string]models.DataSource
-	err = utils.ParseConfig(string(config), templateFields, &configMap)
-	if err != nil {
-		log.Printf("error parsing config to map of data sources: %v\n", err)
-		writer.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(writer, "ingestion failed, check logs for more details")
+	var configMap map[string]pkg.DataSource
+	if err := pkg.ParseConfig(string(config), fields, &configMap); err != nil {
+		log.Printf("Error parsing config to map of data sources: %v\n", err)
+		http.Error(w, "Unable to parse configuration", http.StatusInternalServerError)
 		return
 	}
 
-	bigQueryClient := newBigQueryClientFunc()
-	ctx := request.Context()
-	err = bigQueryClient.Init(ctx, projectId)
-	if err != nil {
-		log.Printf("error creating BigQuery bigQueryClient: %v\n", err)
-		writer.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(writer, "ingestion failed, check logs for more details")
-		return
-	}
-	defer bigQueryClient.Close()
-
-	err = ingestAll(ctx, bigQueryClient, configMap)
-	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(writer, "ingestion failed, check logs for more details")
+	if err := ingestAll(r.Context(), client, configMap); err != nil {
+		log.Printf("Error ingesting data sources: %v\n", err)
+		http.Error(w, "Unable to ingest data sources", http.StatusInternalServerError)
 		return
 	}
 
-	writer.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func ingestAll(
 	ctx context.Context,
-	bigQueryClient utils.BigQueryClient,
-	configMap map[string]models.DataSource,
+	client *bigquery.Client,
+	configMap map[string]pkg.DataSource,
 ) error {
-	totalCount := len(configMap)
-	log.Printf("starting ingestion of %d data source(s)\n", totalCount)
+	count := len(configMap)
+	log.Printf("Starting ingestion of %d data source(s)\n", count)
 
-	startTime := time.Now()
-	channel := make(chan error)
+	start := time.Now()
+	errChan := make(chan error)
 
-	for name, dataSource := range configMap {
-		name := name
-		dataSource := dataSource
-
-		go func() {
-			channel <- bigQueryClient.LoadToBigQuery(ctx, name, dataSource)
-		}()
+	for name, source := range configMap {
+		go func(name string, source pkg.DataSource) {
+			errChan <- pkg.LoadToBigQuery(ctx, client, name, source)
+		}(name, source)
 	}
 
-	errorCount := 0
+	errCount := 0
+
 	for range configMap {
-		err := <-channel
-		if err != nil {
-			errorCount++
+		if err := <-errChan; err != nil {
 			log.Println(err.Error())
+			errCount++
 		}
 	}
 
-	elapsed := time.Since(startTime).Seconds()
+	elapsed := time.Since(start).Seconds()
 	log.Printf(
-		"finished ingestion of %d data source(s) after %f seconds. Succeeded: %d. Failed: %d\n",
-		totalCount,
+		"Finished ingestion of %d data source(s) after %f seconds. Succeeded: %d. Failed: %d\n",
+		count,
 		elapsed,
-		totalCount-errorCount,
-		errorCount,
+		count-errCount,
+		errCount,
 	)
 
-	if errorCount != 0 {
-		return fmt.Errorf(
-			"failed ingestion of %d data sources",
-			errorCount,
-		)
+	if errCount != 0 {
+		return fmt.Errorf("failed ingestion of %d data sources", errCount)
 	}
+
 	return nil
 }

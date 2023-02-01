@@ -1,4 +1,4 @@
-package utils
+package pkg
 
 import (
 	"fmt"
@@ -6,18 +6,16 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/johannaojeling/go-data-ingestion/pkg/models"
 )
 
 func TestGenerateGCSReference(t *testing.T) {
 	testCases := []struct {
-		dataSource models.DataSource
+		dataSource DataSource
 		expected   *bigquery.GCSReference
 		reason     string
 	}{
 		{
-			dataSource: models.DataSource{
+			dataSource: DataSource{
 				SourceUri:    "gs://test-bucket",
 				SourceFormat: "NEWLINE_DELIMITED_JSON",
 				AutoDetect:   true,
@@ -32,10 +30,10 @@ func TestGenerateGCSReference(t *testing.T) {
 			reason: "Should generate GCSReference struct from DataSource",
 		},
 		{
-			dataSource: models.DataSource{
+			dataSource: DataSource{
 				SourceUri:    "gs://test-bucket",
 				SourceFormat: "AVRO",
-				AvroOptions: &models.AvroOptions{
+				AvroOptions: &AvroOptions{
 					UseAvroLogicalTypes: true,
 				},
 			},
@@ -52,10 +50,10 @@ func TestGenerateGCSReference(t *testing.T) {
 				"including AvroOptions when source format is AVRO",
 		},
 		{
-			dataSource: models.DataSource{
+			dataSource: DataSource{
 				SourceUri:    "gs://test-bucket",
 				SourceFormat: "CSV",
-				CSVOptions: &models.CSVOptions{
+				CSVOptions: &CSVOptions{
 					FieldDelimiter:  "|",
 					SkipLeadingRows: 1,
 				},
@@ -74,10 +72,10 @@ func TestGenerateGCSReference(t *testing.T) {
 				"including CSVOptions when source format is CSV",
 		},
 		{
-			dataSource: models.DataSource{
+			dataSource: DataSource{
 				SourceUri:    "gs://test-bucket",
 				SourceFormat: "PARQUET",
-				ParquetOptions: &models.ParquetOptions{
+				ParquetOptions: &ParquetOptions{
 					EnumAsString:        true,
 					EnableListInference: false,
 				},

@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/funcframework"
-
 	_ "github.com/johannaojeling/go-data-ingestion"
 )
 
@@ -19,8 +18,7 @@ func init() {
 
 func main() {
 	log.Printf("listening on port %s\n", port)
-	err := funcframework.Start(port)
-	if err != nil {
-		log.Fatalf("failed to start funcframework: %v", err)
+	if err := funcframework.Start(port); err != nil {
+		log.Fatalf("failed to start functions framework: %v", err)
 	}
 }

@@ -1,4 +1,4 @@
-package models
+package pkg
 
 import "cloud.google.com/go/bigquery"
 

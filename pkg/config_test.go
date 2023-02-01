@@ -1,21 +1,19 @@
-package utils
+package pkg
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/johannaojeling/go-data-ingestion/pkg/models"
 )
 
 func TestParseConfig(t *testing.T) {
 	testCases := []struct {
 		configFile string
-		fields     interface{}
-		expected   map[string]models.DataSource
+		fields     any
+		expected   map[string]DataSource
 		expectsErr bool
 		reason     string
 	}{
@@ -28,7 +26,7 @@ func TestParseConfig(t *testing.T) {
 				Bucket: "test-bucket",
 				Date:   time.Date(2022, 01, 31, 0, 0, 0, 0, time.UTC),
 			},
-			expected: map[string]models.DataSource{
+			expected: map[string]DataSource{
 				"test01": {
 					SourceUri:         "gs://test-bucket/input/2022/01/31/test.json",
 					SourceFormat:      "NEWLINE_DELIMITED_JSON",
@@ -42,7 +40,7 @@ func TestParseConfig(t *testing.T) {
 					SourceUri:    "gs://test-bucket/input/2022/01/31/test.csv",
 					SourceFormat: "CSV",
 					AutoDetect:   true,
-					CSVOptions: &models.CSVOptions{
+					CSVOptions: &CSVOptions{
 						SkipLeadingRows: 1,
 					},
 					DatasetId:         "raw",
@@ -71,12 +69,12 @@ func TestParseConfig(t *testing.T) {
 
 	for i, tc := range testCases {
 		t.Run(fmt.Sprintf("Test %d: %s", i, tc.reason), func(t *testing.T) {
-			content, err := ioutil.ReadFile("./testdata/" + tc.configFile)
+			content, err := os.ReadFile("./testdata/" + tc.configFile)
 			if err != nil {
 				t.Fatalf("failed reading testdata: %v", err)
 			}
 
-			var actual map[string]models.DataSource
+			var actual map[string]DataSource
 			actualErr := ParseConfig(string(content), tc.fields, &actual)
 
 			assert.Equal(t, tc.expectsErr, actualErr != nil, "Error should match")
@@ -88,7 +86,7 @@ func TestParseConfig(t *testing.T) {
 func TestParseTemplate(t *testing.T) {
 	testCases := []struct {
 		content    string
-		data       interface{}
+		data       any
 		expected   []byte
 		expectsErr bool
 		reason     string
@@ -115,7 +113,7 @@ func TestParseTemplate(t *testing.T) {
 				Field1: "test",
 				Field2: time.Date(2022, 01, 31, 0, 0, 0, 0, time.UTC),
 			},
-			expected:   []byte(""),
+			expected:   nil,
 			expectsErr: true,
 			reason:     "Should return error due to incorrectly formatted templated content",
 		},
