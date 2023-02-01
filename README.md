@@ -71,7 +71,7 @@ go run cmd/main.go
 Set URL
 
 ```bash
-export URL="localhost:${PORT}"
+URL="localhost:${PORT}"
 ```
 
 Invoke the function by making an HTTP POST request with a body containing a date in the format `%Y-%m-%d`
@@ -100,6 +100,7 @@ Deploy to Cloud Functions
 
 ```bash
 gcloud functions deploy ${FUNCTION_NAME} \
+--gen2 \
 --project=${PROJECT} \
 --region=${REGION} \
 --trigger-http \
@@ -115,9 +116,9 @@ gcloud functions deploy ${FUNCTION_NAME} \
 Set URL and token
 
 ```bash
-export URL="https://${REGION}-${PROJECT}.cloudfunctions.net/${FUNCTION_NAME}"
+URL=$(gcloud functions describe ${FUNCTION_NAME} --gen2 --region=${REGION} --format="value(serviceConfig.uri)")
 
-export TOKEN=$(gcloud auth print-identity-token)
+TOKEN=$(gcloud auth print-identity-token)
 ```
 
 Invoke the function by making an HTTP POST request with a body containing a date in the format `%Y-%m-%d`
