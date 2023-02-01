@@ -30,7 +30,7 @@ See [pkg/models/data_source.go](pkg/models/data_source.go) for details about spe
 
 ## Pre-requisites
 
-- Go version 1.16
+- Go version 1.19
 - Gcloud SDK
 
 ## Development
@@ -103,7 +103,7 @@ gcloud functions deploy ${FUNCTION_NAME} \
 --project=${PROJECT} \
 --region=${REGION} \
 --trigger-http \
---runtime=go116 \
+--runtime=go119 \
 --entry-point=IngestBatch \
 --service-account=${CLOUD_FUNCTION_SA} \
 --set-env-vars=PROJECT=${PROJECT},BUCKET=${BUCKET} \
